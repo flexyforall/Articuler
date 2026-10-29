@@ -94,14 +94,22 @@ img{display:block;max-width:none;}
 .q{left:48px;top:121px;width:666px;font:500 64px/70px var(--sans);letter-spacing:-.02em;}
 .ex{left:792px;top:201px;width:600px;font:400 20px/30px var(--sans);color:var(--on-ink-dim)!important;}
 .count{left:48px;top:571px;display:flex;gap:12px;align-items:flex-start;}
-.num{font:600 180px/171px var(--sans);letter-spacing:-.045em;font-variant-numeric:tabular-nums;}
+.num{display:flex;height:171px;font:600 180px/171px var(--sans);letter-spacing:-.045em;font-variant-numeric:tabular-nums;}
+/* slot-style digits: one solid digit per column rolls into place, edges fade instead of stacking ghosts */
+.num .col{display:block;height:221px;margin:-25px 0;overflow:hidden;-webkit-mask:linear-gradient(transparent,#000 16%,#000 84%,transparent);mask:linear-gradient(transparent,#000 16%,#000 84%,transparent);}
+.num .col i{display:block;font-style:normal;will-change:transform;}
+.num .col b{display:block;height:221px;line-height:221px;font-weight:600;}
+.num .cm{display:block;}
+.ln{display:block;overflow:hidden;padding-bottom:.12em;margin-bottom:-.12em;}
+.ln>span{display:block;will-change:transform,opacity,filter;}
+.sup .w{display:inline-block;will-change:transform,opacity;}
 .plus{display:flex;flex-direction:column;}
 .plus b{font:500 160px/133px var(--sans);}
 .plus span{font:400 20px/22px var(--sans);}
 .ph{position:absolute;width:287px;height:233px;left:0;top:0;will-change:transform;cursor:pointer;}
 .ph img{width:287px;height:233px;transition:transform .45s cubic-bezier(.2,.8,.2,1),filter .45s;filter:drop-shadow(0 18px 30px rgba(0,0,0,.35));}
 .ph:hover img{transform:translate(-14px,-22px) scale(1.04);}
-.divider{position:absolute;left:0;top:564px;width:1440px;height:1px;background:var(--rule);transform-origin:left;}
+.divider{position:absolute;left:0;top:564px;width:1440px;height:1px;background:var(--rule);transform-origin:left;transform:scaleX(0);}
 .sup{left:48px;top:613px;width:1100px;font:400 32px/43px var(--sans);letter-spacing:-.01em;}
 .sup span{color:var(--on-ink-dim);}
 .disc{left:48px;top:731px;font:500 16px/21px var(--mono);text-transform:uppercase;letter-spacing:.02em;}
@@ -174,9 +182,9 @@ img{display:block;max-width:none;}
     <div class="pin">
       <div class="card" id="card">
         <div class="stage" id="stage">
-          <h2 class="t q" id="q">How does Articuler know my meetings?</h2>
+          <h2 class="t q" id="q" aria-label="How does Articuler know my meetings?"><span class="ln"><span id="q1">How does Articuler</span></span><span class="ln"><span id="q2">know my meetings?</span></span></h2>
           <p class="t ex" id="ex">Starts with intent, assessing signals. The outcome is a ranked list — choose who to contact.</p>
-          <div class="t count" id="count"><span class="num" id="num">000,000</span><span class="plus"><b>+</b><span>matches made.</span></span></div>
+          <div class="t count" id="count"><span class="num" id="num" aria-label="124,860"></span><span class="plus"><b>+</b><span>matches made.</span></span></div>
 
           <div class="ph" id="p4"><img src="img/Q4.png" alt=""></div>
           <div class="ph" id="p3"><img src="img/Q3.png" alt=""></div>
@@ -198,11 +206,13 @@ img{display:block;max-width:none;}
 
 <script>
 (function(){
-  var W=1440, LEN=2800, TARGET=124860, INTRO=2200, introStart=null, introP=0;
+  var W=1440, LEN=3800, TARGET=124860, INTRO=2400, introStart=null, introP=0;
   var site=document.getElementById('site'), scene=document.getElementById('scene');
   scene.style.setProperty('--len',LEN+'px');
   var $=function(id){return document.getElementById(id)};
   var nav=$('nav'),card=$('card'),stage=$('stage'),q=$('q'),ex=$('ex'),count=$('count'),num=$('num'),dv=$('div'),sup=$('sup'),disc=$('disc'),hint=$('hint');
+  var q1=$('q1'),q2=$('q2'),plus=count.querySelector('.plus');
+  var light=[document.querySelector('.hero'),document.querySelector('.logos')];
   var P={p1:$('p1'),p2:$('p2'),p3:$('p3'),p4:$('p4')};
   // photo positions from the storyboard frames (viewport coords, 1440x800)
   var F2={p1:[960,645],p2:[1040,557],p3:[1137,507],p4:[1246,457]};
@@ -214,50 +224,66 @@ img{display:block;max-width:none;}
   var cl=function(v){return v<0?0:v>1?1:v};
   var seg=function(t,a,b){return cl((t-a)/(b-a))};
   var eo=function(x){return 1-Math.pow(1-x,3)};
+  var eo5=function(x){return 1-Math.pow(1-x,5)};
   var eio=function(x){return x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2};
   var lerp=function(a,b,k){return a+(b-a)*k};
-  function fmt(n){var s=String(Math.round(n)).padStart(6,'0');return s.slice(0,3)+','+s.slice(3);}
+  // counter: build one rolling column per digit
+  var RH=221,cols=[];String(TARGET).padStart(6,'0').split('').forEach(function(d,i){
+    if(i===3){var c=document.createElement('span');c.className='cm';c.textContent=',';num.appendChild(c);}
+    var col=document.createElement('span');col.className='col';var st=document.createElement('i');for(var r=0;r<20;r++){var b=document.createElement('b');b.textContent=r%10;st.appendChild(b);}col.appendChild(st);num.appendChild(col);cols.push({s:st,d:+d});});
+  // statement: split into words so it can build up word by word
+  var words=[];(function(){var out=[];[].slice.call(sup.childNodes).forEach(function(n){var dim=n.nodeType===1,txt=n.textContent;txt.split(/(\s+)/).forEach(function(w){if(!w)return;if(/^\s+$/.test(w)){out.push(document.createTextNode(w));return;}var e=document.createElement('span');e.className='w';if(dim)e.style.color='var(--on-ink-dim)';e.textContent=w;out.push(e);words.push(e);});});sup.textContent='';out.forEach(function(n){sup.appendChild(n)});})();
   function update(){
     var y=window.scrollY/z;                    // scroll in design px
     var p0=800+160-41;                         // pin start: hero + logos − overlap
     var t=reduce?0.7:cl((y-p0)/LEN); if(reduce)introP=1;
-    // A: counter + photos enter
-    // A (time-based): starts once the block is pinned, resets when scrolled back above
-    if(t>0.005 && introStart===null){introStart=performance.now();tick();}
-    if(t<=0 && introStart!==null && y<p0-200){introStart=null;introP=0;}
-    var cA=eo(seg(introP,0,.8));
-    num.textContent=fmt(TARGET*cA);
+    // 0) entrance: the dark card slides up over the light page, which lags behind slightly
+    var en=reduce?1:eo(seg(y,p0-800,p0));
+    light.forEach(function(el){el.style.transform='translateY('+(Math.max(0,Math.min(y,p0)-(p0-800))*.38).toFixed(1)+'px)'});
+    // intro (time-based): starts as the card arrives, rewinds when scrolled back above
+    if(y>p0-260 && introStart===null){introStart=performance.now();tick();}
+    if(y<p0-520 && introStart!==null){introStart=null;introP=0;}
+    var ms=introP*INTRO;
+    // headline lines rise out of a mask, softly unblurring
+    [q1,q2].forEach(function(el,i){var k=eo5(seg(ms,i*110,i*110+950));el.style.transform='translateY('+(105*(1-k)).toFixed(1)+'%)';el.style.filter=k<1?'blur('+(6*(1-k)).toFixed(2)+'px)':'none';el.style.opacity=.2+.8*k;});
+    var ek=eo(seg(ms,260,1200));ex.style.opacity=ek;ex.style.filter=ek<1?'blur('+(5*(1-ek)).toFixed(2)+'px)':'none';
+    // counter digits roll one lap into the final number (same pace as before)
+    cols.forEach(function(c,i){var k=eo5(seg(ms,260+i*75,260+i*75+1500));c.s.style.transform='translateY('+(-(10+c.d)*RH*k).toFixed(1)+'px)';});
+    var pk=eo(seg(ms,1100,1700));plus.style.opacity=pk;plus.style.transform='translateY('+(18*(1-pk)).toFixed(1)+'px)';
+    num.style.opacity=eo(seg(ms,200,600));
     // B: card goes full-bleed and the 2nd photo lifts (hover beat)
-    var b=eio(seg(t,.10,.24));
-    // C: header leaves, photos regroup, statement enters
-    var c=eio(seg(t,.26,.58));
+    var b=eio(seg(t,.05,.15));
     // D: card returns to inset before release
-    var d=eio(seg(t,.86,1));
-    var inset=lerp(8,0,b)+lerp(0,8,d), top=lerp(41,0,b)+lerp(0,41,d), rad=lerp(8,0,b)+lerp(0,8,d);
+    var d=eio(seg(t,.9,1));
+    var inset=lerp(8,0,b)+lerp(0,8,d), top=lerp(41,0,b)+lerp(0,41,d), rad=lerp(lerp(28,8,en),0,b)+lerp(0,8,d);
     var gap=lerp(8,0,b)+lerp(0,8,d);
     card.style.left=inset+'px';card.style.top=top+'px';card.style.width=(W-2*inset)+'px';card.style.height=(800-top-gap)+'px';
-    card.style.borderRadius=rad+'px';
+    card.style.borderRadius=rad+'px';card.style.transformOrigin='50% 0';card.style.transform='scale('+lerp(.93,1,en).toFixed(4)+')';
+    card.style.boxShadow='0 -30px 80px rgba(0,0,0,'+(.18*(1-en)).toFixed(3)+')';
     stage.style.left=(-inset)+'px';stage.style.top=(-top)+'px';
-    // header
-    var up=-260*c, fade=1-seg(t,.26,.48);
+    // C1: header leaves first
+    var hc=eio(seg(t,.17,.3)), up=-220*hc, fade=1-seg(t,.17,.27);
     q.style.transform='translateY('+up+'px)';q.style.opacity=fade;
-    ex.style.transform='translateY('+up+'px)';ex.style.opacity=fade;
-    count.style.transform='translateY('+(-180*c)+'px)';count.style.opacity=1-seg(t,.28,.46);
-    // photos
-    var order=['p4','p3','p2','p1'];
-    order.forEach(function(k,i){
-      var a=eo(seg(introP,.12+i*.1,.55+i*.1));       // staggered rise (time-based)
+    ex.style.transform='translateY('+up+'px)';ex.style.opacity=ek*fade;
+    count.style.transform='translateY('+(-160*hc)+'px)';count.style.opacity=1-seg(t,.17,.26);
+    // C2: photos fly from the corner to the centre as a trailing chain — each on its own curve, tilting and swelling mid-flight
+    ['p1','p2','p3','p4'].forEach(function(k,i){
+      var a=eo(seg(introP,.12+(3-i)*.1,.55+(3-i)*.1));       // staggered rise (time-based)
       var x=lerp(F2[k][0],F3[k][0],b), yy=lerp(F2[k][1],F3[k][1],b);
-      x=lerp(x,F4[k][0],c); yy=lerp(yy,F4[k][1],c);
-      yy+= (1-a)*420;
-      P[k].style.transform='translate('+x+'px,'+yy+'px)';
+      var f=seg(t,.21+i*.045,.21+i*.045+.2),fe=eio(f);
+      var cx=(x+F4[k][0])/2+60-i*10, cy=Math.min(yy,F4[k][1])-170+i*18;      // control point above the straight line
+      var px=(1-fe)*(1-fe)*x+2*(1-fe)*fe*cx+fe*fe*F4[k][0], py=(1-fe)*(1-fe)*yy+2*(1-fe)*fe*cy+fe*fe*F4[k][1];
+      var arc=Math.sin(Math.PI*f), rot=arc*(-9+i*2.5), sc=1+arc*(.14-i*.02);
+      py+=(1-a)*420;
+      P[k].style.transform='translate('+px.toFixed(1)+'px,'+py.toFixed(1)+'px) rotate('+rot.toFixed(2)+'deg) scale('+sc.toFixed(3)+')';
       P[k].style.opacity=a;
+      P[k].style.zIndex=f>0&&f<1?10+i:'';
     });
-    // statement
-    var s=eo(seg(t,.44,.64));
-    dv.style.opacity=s;dv.style.transform='translateY('+(40*(1-s))+'px)';
-    sup.style.opacity=s;sup.style.transform='translateY('+(40*(1-s))+'px)';
-    disc.style.opacity=eo(seg(t,.52,.68));disc.style.transform='translateY('+(30*(1-eo(seg(t,.52,.68))))+'px)';
+    // statement: only after the photos have landed and sat alone for a beat
+    var dl=eo(seg(t,.62,.72));dv.style.transform='scaleX('+dl+')';dv.style.opacity=1;
+    sup.style.opacity=1;sup.style.transform='none';
+    words.forEach(function(w,i){var k=eo(seg(t,.64+i*.0075,.64+i*.0075+.05));w.style.opacity=k.toFixed(3);w.style.transform='translateY('+(14*(1-k)).toFixed(1)+'px)';});
+    var dk=eo(seg(t,.84,.89));disc.style.opacity=dk;disc.style.transform='translateY('+(16*(1-dk))+'px)';
     // nav theme: dark while the card sits under it
     var cardTopOnScreen=(y<p0)?(p0-y)+top:top, cardBottomOnScreen=(y>p0+LEN)?(800-8)-(y-p0-LEN):792;
     nav.classList.toggle('is-dark',cardTopOnScreen<70&&cardBottomOnScreen>39);
